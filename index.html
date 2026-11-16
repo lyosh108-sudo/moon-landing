@@ -1,23 +1,889 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Посадка на Луну</title><style>
-:root{color-scheme:dark;--ink:#efbb69;--dim:#b5925b;--line:#806039}*{box-sizing:border-box}body{background:#090a09;color:var(--ink);font:16px/1.6 Consolas,"Liberation Mono",monospace;padding:24px 12px;margin:0}main{max-width:750px;margin:auto;border:1px solid var(--line);background:#11120f}header,section,footer{padding:20px 24px;border-bottom:1px dashed var(--line)}header{text-align:center}h1{font-size:23px;letter-spacing:2px;margin:12px 0}.hint{font-size:13px;color:var(--dim)}.langs{display:flex;justify-content:flex-end;gap:10px}.row{display:flex;justify-content:space-between;gap:12px;padding:7px 0}.value{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}button,input{font:inherit;color:inherit;background:transparent}button{border:0;padding:8px 4px;cursor:pointer}button:before{content:"[ "}button:after{content:" ]"}button:hover,button[aria-pressed=true]{background:#2b261b;color:#ffe6b7}button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:3px}label{display:block;margin-bottom:12px}.entry{display:flex;gap:12px;align-items:center}input{width:100%;min-width:0;border:0;border-bottom:1px solid var(--ink);padding:10px}.entry button{white-space:nowrap}.error{color:#ff9b8e;min-height:26px;margin-top:10px}.warn{color:#ffd35e}.danger{color:#ff9b8e}footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:0}details{padding:12px 24px;border-top:1px dashed var(--line)}summary{cursor:pointer}details p{font-size:14px}.result{border:1px solid var(--line);padding:14px;margin-top:16px}.result p{margin:8px 0}.crater{border-top:1px dashed var(--line);padding-top:10px}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:12px}td,th{text-align:right;padding:6px;border-bottom:1px solid #403725}[hidden]{display:none!important}@media(max-width:520px){body{font-size:14px;padding:10px 6px}header,section,footer{padding:16px}h1{font-size:19px}.entry{flex-wrap:wrap}.entry input{flex:1}.entry button{width:100%}details{padding:12px 16px}}
-</style></head><body><main><header><nav class="langs" aria-label="Language"><button id="rus">RUS</button><button id="eng">ENG</button></nav><h1 id="title"></h1><div class="hint" id="subtitle"></div></header><section><div id="instruments"></div><p class="hint" id="ghint"></p><div id="result" class="result" role="status" hidden></div></section><section id="inputpanel"><form id="form" novalidate><label id="label" for="burn"></label><div class="entry"><span>&gt;</span><input id="burn" inputmode="decimal" autocomplete="off" aria-describedby="help error"><button id="step" type="submit"></button></div><p id="help" class="hint"></p><div id="error" class="error" role="alert"></div></form></section><footer><button id="instructions"></button><button id="restart"></button></footer><details id="manual"><summary id="manualtitle"></summary><div id="manualtext"></div></details><details><summary id="logtitle"></summary><div class="scroll"><table><thead id="loghead"></thead><tbody id="log"></tbody></table></div><p class="hint" id="loghint"></p></details><details><summary id="testtitle"></summary><button id="testbutton"></button><p id="testresult" role="status"></p></details></main><script>const G0=9.80665,FT=1/0.3048;
-class Game{constructor(){this.h=1000;this.v=150;this.m=500;this.t=0;this.g=0;this.done=false;this.grade=null;this.rows=[];}step(s){if(this.done||!Number.isFinite(s)||s<0)throw Error('Invalid input');const b=s<=this.m?s:0;this.t++;this.m-=b;const a=b/(2+this.m/1000);this.g=a/G0;this.v+=1.62-a;this.h-=this.v;if(this.h<=0){this.done=true;this.grade=Math.min(9,Math.floor(-this.h+Math.abs(this.v)+1));}this.rows.push({t:this.t,s,b,h:this.h,v:this.v,m:this.m,g:this.g});}}
-function mark(g){return g>9?' (Х!!!Х)':g>=6?' (!!!)':g>=3?' (!)':'';}
-function test(){let g=new Game();let n=0;const e={1:856.4,2:719.4,3:591,5:366.9,7:194.1,8:130.5,9:85.6,10:57.4,11:46.2,12:38.1,13:33.2,14:26.6,15:18.4,16:10.9,17:5.1,18:1.6,19:1.2,20:1.5,21:.3};for(const s of [20,20,25,30,30,35,35,40,45,40,40,10,10,0,0,5,7,8,10,5,0,3]){g.step(s);if(e[g.t]!==undefined&&Math.abs(e[g.t]-g.h)<=.05)n++;}return n===19&&g.grade===3&&g.t===22&&g.m===82;}
+<!DOCTYPE html>
+<html lang="ru">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <title>
+   Посадка на Луну
+  </title>
+  <style>
+:root {
+  color-scheme: dark;
+  --ink: #efbb69;
+  --dim: #b5925b;
+  --line: #806039;
+}
 
-const strings={
- ru:{title:'ПОСАДКА НА ЛУНУ',subtitle:'По программе из книги «Пять вечеров с микрокалькулятором», 1988 / версия 3',height:'Высота',down:'Скорость снижения',up:'Скорость подъёма',fuel:'Топливо',time:'Время полёта',g:'Перегрузка экипажа',distance:'м',speed:'м/с',mass:'т',sec:'сек',ghint:'Перегрузка от тяги на последнем ходу. Без тяги — 0 G.',label:'Топливо на следующую секунду, т',placeholder:'Введите число',step:'ВЫПОЛНИТЬ ХОД',help:'Enter — следующий ход. 0 — без тяги. Дроби: точка или запятая.',instructions:'ИНСТРУКЦИЯ',restart:'НОВАЯ ИГРА',manualtitle:'Памятка пилоту',logtitle:'Журнал ходов',loghint:'Скорость: плюс — снижение, минус — подъём. Последняя высота в журнале может быть отрицательной.',testtitle:'Проверка по книжному примеру',testbutton:'ПРОГНАТЬ ТЕСТ',invalid:'Введите неотрицательное конечное число. Пустой ввод не выполняет ход.',shortage:'Топлива недостаточно. Выполнить ход с выключенным двигателем, как в оригинале?',zero:'Подача обнулена: топлива недостаточно.',reset:'Начать новый полёт? Текущий прогресс будет потерян.',finished:'ПОСАДКА ЗАВЕРШЕНА',grade:'Оценка',crater:'Глубина кратера',reserve:'Топливный резерв обратного старта сохранён.',noreserve:'Топлива для обратного старта недостаточно.',headers:['Ход','Ввод, т','Сожжено, т','Высота, м','Скорость, м/с','Топливо, т','G'],grades:['','Идеальная посадка','Нормальная посадка','Тяжёлая посадка','Посадка с легко устранимыми повреждениями','Неустранимые повреждения; обратный старт вряд ли возможен','Очень сильные повреждения','Разгерметизация отдельных блоков; жизнь экипажа под угрозой','Гибель экипажа','Взрыв корабля'],manual:['Один ход — 1 сек модельного времени. Пока вы размышляете, время не идёт. Цель — мягкая посадка с экономией топлива и времени.','Начальные условия: 1000 м; снижение 150 м/с; топливо 500 т. Лунное ускорение — 1,62 м/с². Резерв обратного старта — 95 т.','При запросе сверх остатка топлива подача обнуляется после подтверждения. Пустые и отрицательные значения не выполняют ход.','Маркеры перегрузки: от 3 до менее 6 G — (!); от 6 до 9 G включительно — (!!!); выше 9 G — (Х!!!Х). Это игровые предупреждения, не медицинские пределы. На исход не влияют.','Оценки выше 9 ограничены девяткой. Глубина кратера — игровое название расстояния ниже поверхности на завершающем шаге. Удар и торможение в грунте не моделируются.','Сообщение о топливе после посадки показывается только для оценок 1–3: они не сообщают о повреждениях или ранениях.','Исправлена команда 37: ИПВ → ИП8. Известные расхождения книги: скорость на 7-м ходу 79,631 вместо 76,6 м/с; завершение на 22 вместо 21 сек.','Смена языка не меняет полёт. Английский режим показывает расстояния в футах и скорости в ft/sec; топливо остаётся в метрических тоннах.']},
- en:{title:'MOON LANDING',subtitle:'Based on “Five Evenings with a Microcalculator”, 1988 / version 3',height:'Altitude',down:'Descent speed',up:'Ascent speed',fuel:'Fuel',time:'Flight time',g:'Crew G-load',distance:'ft',speed:'ft/sec',mass:'t',sec:'sec',ghint:'Thrust G-load during the last step. Engine off: 0 G.',label:'Fuel for the next second, metric tonnes',placeholder:'Enter a number',step:'EXECUTE STEP',help:'Enter — next step. 0 — engine off. Decimals: dot or comma.',instructions:'INSTRUCTIONS',restart:'NEW GAME',manualtitle:'Pilot briefing',logtitle:'Flight log',loghint:'Velocity: positive means descent, negative means ascent. The final logged altitude may be negative.',testtitle:'Book example verification',testbutton:'RUN TEST',invalid:'Enter a finite nonnegative number. Empty input does not advance the flight.',shortage:'Not enough fuel. Advance with the engine off, as in the original?',zero:'Fuel burn set to zero: insufficient fuel.',reset:'Start a new flight? Current progress will be lost.',finished:'LANDING COMPLETE',grade:'Rating',crater:'Crater depth',reserve:'The return-launch fuel reserve is preserved.',noreserve:'Insufficient fuel for a return launch.',headers:['Step','Input, t','Burned, t','Altitude, ft','Velocity, ft/sec','Fuel, t','G'],grades:['','Perfect landing','Normal landing','Hard landing','Landing with easily repairable damage','Irreparable damage; a return launch is unlikely','Very severe damage','Partial depressurization; crew lives at risk','Crew lost','Spacecraft explosion'],manual:['Each step advances the simulation by 1 sec. Time stands still while you think. Aim for a gentle landing while saving fuel and time.','Initial conditions: altitude 3280.84 ft; descent speed 492.13 ft/sec; fuel 500 metric tonnes. Lunar gravity: 5.315 ft/sec². Return-launch reserve: 95 tonnes.','Requesting more fuel than remains sets the burn to zero, after confirmation. Empty or negative input does not advance the simulation.','G-load markers: 3 to below 6 G: (!); 6 through 9 G: (!!!); above 9 G: (Х!!!Х). These are game warnings, not medical limits. They do not affect the outcome.','Ratings above 9 are capped at 9. Crater depth is the game name for the below-surface distance on the last step. Impact and soil braking are not simulated.','The post-landing fuel message appears only for ratings 1–3, which do not report damage or injuries.','Instruction 37 corrected: recall B → recall 8. Known discrepancies in the book: step-7 speed is 261.257 rather than the printed 251.312 ft/sec; landing takes 22 rather than 21 sec.','Switching languages does not alter the flight. Distance is shown in feet and speed in ft/sec. Fuel always uses metric tonnes (t), not US or imperial tons.']}}
-let lang='ru',game=new Game(),errorKey='',testShown=false;
-const $=id=>document.getElementById(id);const f=(n,d=1)=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
-function p(parent,text,cls=''){const e=document.createElement('p');e.textContent=text;e.className=cls;parent.append(e);}
-function render(){const s=strings[lang],k=lang==='en'?FT:1;document.documentElement.lang=lang;document.title=s.title;$('rus').setAttribute('aria-pressed',String(lang==='ru'));$('eng').setAttribute('aria-pressed',String(lang==='en'));
- for(const id of ['title','subtitle','ghint','label','step','help','instructions','restart','manualtitle','logtitle','loghint','testtitle','testbutton'])$(id).textContent=s[id];$('burn').placeholder=s.placeholder;$('error').textContent=errorKey?s[errorKey]:'';
- const ins=$('instruments');ins.replaceChildren();for(const [label,value,cls] of [[s.height,f(Math.max(0,game.h)*k)+' '+s.distance,''],[game.v<0?s.up:s.down,f(Math.abs(game.v)*k)+' '+s.speed,''],[s.fuel,f(game.m)+' '+s.mass,''],[s.time,game.t+' '+s.sec,''],[s.g,f(game.g,2)+' G'+mark(game.g),game.g>=6?'danger':game.g>=3?'warn':'']]){const row=document.createElement('div');row.className='row';const a=document.createElement('span'),b=document.createElement('span');a.textContent=label;b.textContent=value;b.className='value '+cls;row.append(a,b);ins.append(row);}
- $('inputpanel').hidden=game.done;$('result').hidden=!game.done;if(game.done){const el=$('result');el.replaceChildren();p(el,s.finished);p(el,s.grade+': '+f(game.grade+1/9,7)+' ('+s.grades[game.grade]+')');if(game.grade<=3)p(el,game.m>=95?s.reserve:s.noreserve);p(el,s.crater+': '+f(Math.max(0,-game.h)*k,2)+' '+s.distance,'crater');}
- $('manualtext').replaceChildren();for(const text of s.manual)p($('manualtext'),text);
- $('loghead').replaceChildren();const hr=document.createElement('tr');for(const text of s.headers){const th=document.createElement('th');th.textContent=text;hr.append(th);}$('loghead').append(hr);$('log').replaceChildren();for(const r of game.rows){const tr=document.createElement('tr');for(const text of [r.t,f(r.s,2),f(r.b,2),f(r.h*k,3),f(r.v*k,3),f(r.m,2),f(r.g,2)+mark(r.g)]){const td=document.createElement('td');td.textContent=text;tr.append(td);}$('log').append(tr);}
- if(testShown)$('testresult').textContent=(test()?'OK':'ERROR')+(lang==='ru'?': 19/19 высот; оценка 3,1111111; топливо 82 т; 22 сек.':': 19/19 altitudes; rating 3.1111111; fuel 82 t; 22 sec.');}
-$('form').onsubmit=e=>{e.preventDefault();if(game.done)return;const raw=$('burn').value.trim();const n=Number(raw.replace(',','.'));if(!/^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(raw)||!Number.isFinite(n)){errorKey='invalid';render();return;}if(n>game.m&&!confirm(strings[lang].shortage))return;errorKey=n>game.m?'zero':'';game.step(n);$('burn').value='';render();if(!game.done)$('burn').focus();};
-$('restart').onclick=()=>{if(game.t&&!confirm(strings[lang].reset))return;game=new Game();errorKey='';$('burn').value='';render();$('burn').focus();};$('rus').onclick=()=>{lang='ru';render();};$('eng').onclick=()=>{lang='en';render();};$('instructions').onclick=()=>{$('manual').open=!$('manual').open;if($('manual').open)$('manual').scrollIntoView({behavior:'smooth',block:'nearest'});};$('testbutton').onclick=()=>{testShown=true;render();};render();
-</script></body></html>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #090a09;
+  color: var(--ink);
+  font: 16px/1.6 Consolas,"Liberation Mono",monospace;
+  padding: 24px 12px;
+  margin: 0;
+}
+
+main {
+  max-width: 750px;
+  margin: auto;
+  border: 1px solid var(--line);
+  background: #11120f;
+}
+
+header,section,footer {
+  padding: 20px 24px;
+  border-bottom: 1px dashed var(--line);
+}
+
+header {
+  text-align: center;
+}
+
+h1 {
+  font-size: 23px;
+  letter-spacing: 2px;
+  margin: 12px 0;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.langs {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+}
+
+.value {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+button,input {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+button {
+  border: 0;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+
+button:before {
+  content: "[ ";
+}
+
+button:after {
+  content: " ]";
+}
+
+button:hover,button[aria-pressed=true] {
+  background: #2b261b;
+  color: #ffe6b7;
+}
+
+button:focus-visible,input:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+label {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.entry {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  padding: 10px;
+}
+
+.entry button {
+  white-space: nowrap;
+}
+
+.error {
+  color: #ff9b8e;
+  min-height: 26px;
+  margin-top: 10px;
+}
+
+.warn {
+  color: #ffd35e;
+}
+
+.danger {
+  color: #ff9b8e;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 0;
+}
+
+details {
+  padding: 12px 24px;
+  border-top: 1px dashed var(--line);
+}
+
+summary {
+  cursor: pointer;
+}
+
+details p {
+  font-size: 14px;
+}
+
+.result {
+  border: 1px solid var(--line);
+  padding: 14px;
+  margin-top: 16px;
+}
+
+.result p {
+  margin: 8px 0;
+}
+
+.crater {
+  border-top: 1px dashed var(--line);
+  padding-top: 10px;
+}
+
+.scroll {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+td,th {
+  text-align: right;
+  padding: 6px;
+  border-bottom: 1px solid #403725;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media (max-width:520px) {
+  body {
+    font-size: 14px;
+    padding: 10px 6px;
+  }
+
+  header,section,footer {
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 19px;
+  }
+
+  .entry {
+    flex-wrap: wrap;
+  }
+
+  .entry input {
+    flex: 1;
+  }
+
+  .entry button {
+    width: 100%;
+  }
+
+  details {
+    padding: 12px 16px;
+  }
+
+}
+
+:root {
+  --ink: #AEFF86;
+  --dim: #AEFF86;
+  --line: #527b40;
+}
+
+main {
+  max-width: 850px;
+  background: #080c08;
+}
+
+button:hover,button[aria-pressed=true] {
+  background: #1b3015;
+  color: #AEFF86;
+}
+
+td,th {
+  border-color: #294320;
+}
+
+.warn,.danger {
+  color: #AEFF86;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.screen-wrap {
+  width: 100%;
+  overflow: hidden;
+}
+
+.screen {
+  font: 12px/1.1 Consolas,"Liberation Mono",monospace;
+  width: 88ch;
+  transform-origin: top left;
+  color: #AEFF86;
+}
+
+.screen pre {
+  font: inherit;
+  margin: 0;
+  padding: 0;
+  white-space: pre;
+  overflow: visible;
+}
+
+.digits {
+  color: #65FF91;
+  text-shadow: 0 0 2px #65FF91,0 0 7px #65ff9180;
+}
+
+.screen.off .digits {
+  visibility: hidden;
+}
+
+.arrow-up {
+  color: #ff6666;
+}
+
+.statusline {
+  min-height: 26px;
+  font-size: 13px;
+}
+
+.error {
+  color: #ff9b8e;
+}
+
+  </style>
+ </head>
+ <body>
+  <main>
+   <header>
+    <nav aria-label="Language" class="langs">
+     <button id="rus">
+      RUS
+     </button>
+     <button id="eng">
+      ENG
+     </button>
+    </nav>
+    <h1 id="title">
+    </h1>
+    <div class="hint" id="subtitle">
+    </div>
+   </header>
+   <section>
+    <div id="instruments">
+    </div>
+    <div class="result" hidden="" id="result" role="status">
+    </div>
+   </section>
+   <section id="inputpanel">
+    <form id="form" novalidate="">
+     <label for="burn" id="label">
+     </label>
+     <div class="entry">
+      <span>
+       &gt;
+      </span>
+      <input aria-describedby="help error" autocomplete="off" id="burn" inputmode="decimal"/>
+      <button id="step" type="submit">
+      </button>
+     </div>
+     <p class="hint" id="help">
+     </p>
+     <div class="error" id="error" role="alert">
+     </div>
+    </form>
+   </section>
+   <footer>
+    <button id="instructions">
+    </button>
+    <button id="restart">
+    </button>
+   </footer>
+   <details id="manual">
+    <summary id="manualtitle">
+    </summary>
+    <div id="manualtext">
+    </div>
+   </details>
+   <details>
+    <summary id="logtitle">
+    </summary>
+    <div class="scroll">
+     <table>
+      <thead id="loghead">
+      </thead>
+      <tbody id="log">
+      </tbody>
+     </table>
+    </div>
+    <p class="hint" id="loghint">
+    </p>
+   </details>
+   <details>
+    <summary id="testtitle">
+    </summary>
+    <button id="testbutton">
+    </button>
+    <p id="testresult" role="status">
+    </p>
+   </details>
+  </main>
+  <script>
+
+// Physical constants
+const G0=9.80665,
+FT=1/0.3048;
+
+// Simulation engine — original calculation order
+class Game {
+  constructor() {
+    this.h=1000;
+    this.v=150;
+    this.fuel10=5000;
+    this.m=500;
+    this.t=0;
+    this.g=0;
+    this.done=false;
+    this.grade=null;
+    this.rows=[];
+  }
+  step(s) {
+    if(this.done||!Number.isFinite(s)||s<0)throw Error('Invalid input');
+    const b=s<=this.m?s:0;
+    this.t++;
+    this.fuel10-=Math.round(b*10);
+    this.m=this.fuel10/10;
+    const a=b/(2+this.m/1000);
+    this.g=a/G0;
+    this.v+=1.62-a;
+    this.h-=this.v;
+    if(this.h<=0) {
+      this.done=true;
+      this.grade=Math.min(9, Math.floor(-this.h+Math.abs(this.v)+1));
+    }
+    this.rows.push({
+      t:this.t, s, b, h:this.h, v:this.v, m:this.m, g:this.g
+    }
+    );
+  }
+}
+
+// G-load markers and reference-flight verification
+function mark(g) {
+  return g>9?' (Х!!!Х)':g>=6?' (!!!)':g>=3?' (!)':'';
+}
+function test() {
+  let g=new Game();
+  let n=0;
+  const e= {
+    1:856.4,
+    2:719.4,
+    3:591,
+    5:366.9,
+    7:194.1,
+    8:130.5,
+    9:85.6,
+    10:57.4,
+    11:46.2,
+    12:38.1,
+    13:33.2,
+    14:26.6,
+    15:18.4,
+    16:10.9,
+    17:5.1,
+    18:1.6,
+    19:1.2,
+    20:1.5,
+    21:.3
+  }
+  ;
+  for(const s of[20, 20, 25, 30, 30, 35, 35, 40, 45, 40, 40, 10, 10, 0, 0, 5, 7, 8, 10, 5, 0, 3]) {
+    g.step(s);
+    if(e[g.t]!==undefined&&Math.abs(e[g.t]-g.h)<=.05)n++;
+  }
+  return n===19&&g.grade===3&&g.t===22&&g.m===82;
+}
+
+// Russian and English interface text
+const strings= {
+  ru: {
+    title:'ПОСАДКА НА ЛУНУ',
+    subtitle:'По программе из книги «Пять вечеров с микрокалькулятором», 1988 / версия 6',
+    height:'Высота',
+    down:'Скорость снижения',
+    up:'Скорость подъёма',
+    fuel:'Топливо',
+    time:'Время полёта',
+    g:'Перегрузка экипажа',
+    distance:'м',
+    speed:'м/с',
+    mass:'т',
+    sec:'сек',
+    label:'Топливо на следующую секунду, т',
+    placeholder:'Введите число',
+    step:'ВЫПОЛНИТЬ ХОД',
+    help:'Enter — ход. Шаг расхода 0,1 т. Точка или запятая.',
+    instructions:'ИНСТРУКЦИЯ',
+    restart:'НОВАЯ ИГРА',
+    manualtitle:'Памятка пилоту',
+    logtitle:'Журнал ходов',
+    lotesttitle:'Проверка по книжному примеру',
+    testbutton:'ПРОГНАТЬ ТЕСТ',
+    invalid:'Введите неотрицательное число с точностью не более одной цифры после точки или запятой.',
+    shortage:'Расход не может превышать остаток топлива.',
+    zero:'Подача обнулена: топлива недостаточно.',
+    reset:'Начать новый полёт? Текущий прогресс будет потерян.',
+    finished:'ПОСАДКА ЗАВЕРШЕНА',
+    grade:'Оценка',
+    crater:'Глубина кратера',
+    reserve:'Топливный резерв обратного старта сохранён.',
+    noreserve:'Топлива для обратного старта недостаточно.',
+    headers:['Ход',
+    'Ввод, т',
+    'Сожжено, т',
+    'Высота, м',
+    'Скорость, м/с',
+    'Топливо, т',
+    'G'],
+    grades:['',
+    'Идеальная посадка',
+    'Нормальная посадка',
+    'Тяжёлая посадка',
+    'Посадка с легко устранимыми повреждениями',
+    'Неустранимые повреждения; обратный старт вряд ли возможен',
+    'Очень сильные повреждения',
+    'Разгерметизация отдельных блоков; жизнь экипажа под угрозой',
+    'Гибель экипажа',
+    'Взрыв корабля'],
+    manual:['Один ход — 1 сек модельного времени. Пока вы размышляете, время не идёт. Цель — мягкая посадка с экономией топлива и времени.',
+    'Начальные условия: 1000 м; снижение 150 м/с; топливо 500 т. Лунное ускорение — 1,62 м/с². Резерв обратного старта — 95 т.',
+    'Расход: от 0 до остатка топлива, с шагом 0,1 т. При нулевом запасе все ходы рассчитываются, но показываются не более четырёх этапов.',
+    'Маркеры перегрузки: от 3 до менее 6 G — (!); от 6 до 9 G включительно — (!!!); выше 9 G — (Х!!!Х). Это игровые предупреждения, не медицинские пределы. На исход не влияют.',
+    'Оценки выше 9 ограничены девяткой. Глубина кратера — игровое название расстояния ниже поверхности на завершающем шаге. Удар и торможение в грунте не моделируются.',
+    'Сообщение о топливе после посадки показывается только для оценок 1–3: они не сообщают о повреждениях или ранениях.',
+    'Исправлена команда 37: ИПВ → ИП8. Известные расхождения книги: скорость на 7-м ходу 79,631 вместо 76,6 м/с; завершение на 22 вместо 21 сек.',
+    'Смена языка не меняет полёт. Английский режим показывает расстояния в футах и скорости в ft/sec; топливо остаётся в метрических тоннах.']
+  }
+  ,
+  en: {
+    title:'MOON LANDING',
+    subtitle:'Based on “Five Evenings with a Microcalculator”, 1988 / version 6',
+    height:'Altitude',
+    down:'Descent speed',
+    up:'Ascent speed',
+    fuel:'Fuel',
+    time:'Flight time',
+    g:'Crew G-load',
+    distance:'ft',
+    speed:'ft/sec',
+    mass:'t',
+    sec:'sec',
+    label:'Fuel for the next second, metric tonnes',
+    placeholder:'Enter a number',
+    step:'EXECUTE STEP',
+    help:'Enter: next step. Fuel increment 0.1 t. Dot or comma.',
+    instructions:'INSTRUCTIONS',
+    restart:'NEW GAME',
+    manualtitle:'Pilot briefing',
+    logtitle:'Flight log',
+    lotesttitle:'Book example verification',
+    testbutton:'RUN TEST',
+    invalid:'Enter a finite nonnegative number. Empty input does not advance the flight.',
+    shortage:'Fuel input cannot exceed the remaining fuel.',
+    zero:'Fuel burn set to zero: insufficient fuel.',
+    reset:'Start a new flight? Current progress will be lost.',
+    finished:'LANDING COMPLETE',
+    grade:'Rating',
+    crater:'Crater depth',
+    reserve:'The return-launch fuel reserve is preserved.',
+    noreserve:'Insufficient fuel for a return launch.',
+    headers:['Step',
+    'Input, t',
+    'Burned, t',
+    'Altitude, ft',
+    'Velocity, ft/sec',
+    'Fuel, t',
+    'G'],
+    grades:['',
+    'Perfect landing',
+    'Normal landing',
+    'Hard landing',
+    'Landing with easily repairable damage',
+    'Irreparable damage; a return launch is unlikely',
+    'Very severe damage',
+    'Partial depressurization; crew lives at risk',
+    'Crew lost',
+    'Spacecraft explosion'],
+    manual:['Each step advances the simulation by 1 sec. Time stands still while you think. Aim for a gentle landing while saving fuel and time.',
+    'Initial conditions: altitude 3280.84 ft; descent speed 492.13 ft/sec; fuel 500 metric tonnes. Lunar gravity: 5.315 ft/sec². Return-launch reserve: 95 tonnes.',
+    'Fuel input uses 0.1 t increments and cannot exceed the remaining fuel. Engine-off flight shows at most four stages; the log records every step.',
+    'G-load markers: 3 to below 6 G: (!); 6 through 9 G: (!!!); above 9 G: (Х!!!Х). These are game warnings, not medical limits. They do not affect the outcome.',
+    'Ratings above 9 are capped at 9. Crater depth is the game name for the below-surface distance on the last step. Impact and soil braking are not simulated.',
+    'The post-landing fuel message appears only for ratings 1–3, which do not report damage or injuries.',
+    'Instruction 37 corrected: recall B → recall 8. Known discrepancies in the book: step-7 speed is 261.257 rather than the printed 251.312 ft/sec; landing takes 22 rather than 21 sec.',
+    'Switching languages does not alter the flight. Distance is shown in feet and speed in ft/sec. Fuel always uses metric tonnes (t), not US or imperial tons.']
+  }
+}
+
+// Application state and formatting
+let lang='ru',
+game=new Game(),
+errorKey='',
+testShown=false,
+busy=false,
+epoch=0,
+phase='result';
+const $=id=>document.getElementById(id);
+const f=(n, d=1)=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US', {
+  minimumFractionDigits:d, maximumFractionDigits:d
+}
+);
+function p(parent, text, cls='') {
+  const e=document.createElement('p');
+  e.textContent=text;
+  e.className=cls;
+  parent.append(e);
+}
+
+// Interface rendering
+function render() {
+  const s=strings[lang],
+  k=lang==='en'?FT:1;
+  document.documentElement.lang=lang;
+  document.title=s.title;
+  $('rus').setAttribute('aria-pressed', String(lang==='ru'));
+  $('eng').setAttribute('aria-pressed', String(lang==='en'));
+  for(const id of['title', 'subtitle', 'label', 'step', 'help', 'instructions', 'restart', 'manualtitle', 'logtitle', 'loghint', 'testtitle', 'testbutton'])$(id).textContent=s[id];
+  $('burn').placeholder=s.placeholder;
+  $('error').textContent=errorKey?s[errorKey]:'';
+  const ins=$('instruments');
+  ins.replaceChildren();
+  const meta=document.createElement('div');
+  meta.className='meta';
+  for(const text of[s.g+': '+f(game.g)+' G'+mark(game.g), s.time+': '+game.t+' '+s.sec]) {
+    const el=document.createElement('span');
+    el.textContent=text;
+    meta.append(el);
+  }
+  ins.append(meta);
+  const wrap=document.createElement('div');
+  wrap.className='screen-wrap';
+  const screen=document.createElement('div');
+  screen.className='screen'+(phase==='off'?' off':'');
+  function line(text) {
+    const el=document.createElement('pre');
+    el.textContent=text;
+    screen.append(el);
+    return el;
+  }
+  line('┌'+'─'.repeat(86)+'┐');
+  const widths=[30,
+  26,
+  18],
+  labels=[s.height+' · '+s.distance,
+  (game.v<0?'↑':game.v>0?'↓':' ')+' '+(lang==='ru'?'Скорость':'Speed')+' · '+s.speed,
+  s.fuel+' · '+s.mass];
+  const title=line('');
+  title.append(document.createTextNode('│  '+labels[0].padEnd(30)+'    '));
+  const arrow=document.createElement('span');
+  arrow.textContent=labels[1][0];
+  if(game.v<0)arrow.className='arrow-up';
+  title.append(arrow, document.createTextNode(labels[1].slice(1).padEnd(25)+'    '+labels[2].padEnd(18)+'  │'));
+  const fields=[game.h*k,
+  game.v*k,
+  game.m].map((v, i)=>segmentField(v, widths[i], phase==='all', i));
+  for(let r=0; r<3; r++) {
+    const el=line('│  ');
+    const digits=document.createElement('span');
+    digits.className='digits';
+    digits.textContent=fields.map(x=>x[r]).join('    ');
+    el.append(digits, document.createTextNode('  │'));
+  }
+  line('└'+'─'.repeat(86)+'┘');
+  wrap.append(screen);
+  ins.append(wrap);
+  const status=document.createElement('div');
+  status.className='statusline';
+  status.textContent=busy?(lang==='ru'?'РАСЧЁТ…':'COMPUTING…'):'';
+  ins.append(status);
+  $('step').disabled=busy;
+  $('burn').disabled=busy;
+  requestAnimationFrame(()=> {
+    if(!screen.isConnected)return; const scale=Math.min(1, wrap.clientWidth/screen.offsetWidth); screen.style.transform='scale('+scale+')'; wrap.style.height=screen.offsetHeight*scale+'px';
+  }
+  );
+  $('inputpanel').hidden=game.done||game.m===0;
+  $('result').hidden=!game.done;
+  if(game.done) {
+    const el=$('result');
+    el.replaceChildren();
+    p(el, s.finished+' - ('+game.grade+') '+s.grades[game.grade].toUpperCase());
+    p(el, s.crater+': '+f(Math.max(0, -game.h)*k, 1)+' '+s.distance, 'crater');
+    if(game.grade<=3)p(el, game.m>=95?s.reserve:s.noreserve);
+  }
+  $('manualtext').replaceChildren();
+  for(const text of s.manual)p($('manualtext'), text);
+  $('loghead').replaceChildren();
+  const hr=document.createElement('tr');
+  for(const text of s.headers) {
+    const th=document.createElement('th');
+    th.textContent=text;
+    hr.append(th);
+  }
+  $('loghead').append(hr);
+  $('log').replaceChildren();
+  for(const r of game.rows) {
+    const tr=document.createElement('tr');
+    for(const text of[r.t, f(r.s, 1), f(r.b, 1), f(r.h*k, 1), f(r.v*k, 1), f(r.m, 1), f(r.g, 1)+mark(r.g)]) {
+      const td=document.createElement('td');
+      td.textContent=text;
+      tr.append(td);
+    }
+    $('log').append(tr);
+  }
+  if(testShown)$('testresult').textContent=(test()?'OK':'ERROR')+(lang==='ru'?': 19/19 высот; оценка 3,1111111; топливо 82 т; 22 сек.':': 19/19 altitudes; rating 3.1111111; fuel 82 t; 22 sec.');
+}
+
+// Text-only seven-segment display
+const glyph= {
+  '0':[' _ ',
+  '| |',
+  '|_|'],
+  '1':['   ',
+  '  |',
+  '  |'],
+  '2':[' _ ',
+  ' _|',
+  '|_ '],
+  '3':[' _ ',
+  ' _|',
+  ' _|'],
+  '4':['   ',
+  '|_|',
+  '  |'],
+  '5':[' _ ',
+  '|_ ',
+  ' _|'],
+  '6':[' _ ',
+  '|_ ',
+  '|_|'],
+  '7':[' _ ',
+  '  |',
+  '  |'],
+  '8':[' _ ',
+  '|_|',
+  '|_|'],
+  '9':[' _ ',
+  '|_|',
+  ' _|'],
+  '.':[' ',
+  ' ',
+  '.'],
+  '-':['   ',
+  ' _ ',
+  '   ']
+}
+;
+function segmentField(value, width, all, index) {
+  let raw=Number(value.toFixed(1)).toString();
+  if(value<0&&!raw.startsWith('-'))raw='-'+raw;
+  if(all)raw=index===0?'-88888.8':index===1?'-8888.8':'888.8';
+  const lines=[0,
+  1,
+  2].map(r=>[...raw].map(c=>glyph[c][r]).join(' '));
+  return lines.map(x=>x.length>width?'ERR'.padStart(width):x.padStart(width));
+}
+
+// Automatic engine-off flight
+function coastTargets(n) {
+  if(n<=4)return Array.from({
+    length:n
+  }
+  , (_, i)=>i+1);
+  const q=Math.floor(n/4);
+  return[q,
+  q*2,
+  q*3,
+  n];
+}
+function coastCount(source) {
+  const copy=new Game();
+  Object.assign(copy, source);
+  copy.rows=[];
+  let n=0;
+  while(!copy.done) {
+    copy.step(0);
+    n++;
+    if(n>100000)throw Error('Flight safety limit');
+  }
+  return n;
+}
+
+// Display animation and turn sequencing
+const delay=ms=>new Promise(resolve=>setTimeout(resolve, ms));
+async function animateTo(target, id) {
+  phase='off';
+  render();
+  await delay(500);
+  if(id!==epoch)return false;
+  phase='all';
+  render();
+  await delay(500);
+  if(id!==epoch)return false;
+  phase='off';
+  render();
+  await delay(500);
+  if(id!==epoch)return false;
+  game=target;
+  phase='result';
+  render();
+  return true;
+}
+function copyGame(source) {
+  const copy=new Game();
+  Object.assign(copy, source);
+  copy.rows=source.rows.slice();
+  return copy;
+}
+async function runTurn(n) {
+  if(busy||game.done)return;
+  busy=true;
+  const id=epoch;
+  errorKey='';
+  const next=copyGame(game);
+  next.step(n);
+  if(!await animateTo(next, id))return;
+  if(!game.done&&game.m===0) {
+    const targets=coastTargets(coastCount(game));
+    let previous=0;
+    for(const target of targets) {
+      await delay(150);
+      if(id!==epoch)return;
+      const snapshot=copyGame(game);
+      for(let j=previous; j<target; j++)snapshot.step(0);
+      if(!await animateTo(snapshot, id))return;
+      previous=target;
+    }
+  }
+  if(id!==epoch)return;
+  busy=false;
+  render();
+  if(!game.done)$('burn').focus();
+}
+
+// Input and interface event handlers
+$('form').onsubmit=e=> {
+  e.preventDefault();
+  if(game.done||busy)return;
+  const raw=$('burn').value.trim();
+  if(!/^(?:\d+(?:[.,]\d)?|[.,]\d)$/.test(raw)) {
+    errorKey='invalid';
+    render();
+    return;
+  }
+  const n=Number(raw.replace(',', '.'));
+  if(!Number.isFinite(n)) {
+    errorKey='invalid';
+    render();
+    return;
+  }
+  if(Math.round(n*10)>game.fuel10) {
+    errorKey='shortage';
+    render();
+    return;
+  }
+  $('burn').value='';
+  runTurn(n);
+}
+;
+$('restart').onclick=()=> {
+  if((game.t||busy)&&!confirm(strings[lang].reset))return;
+  epoch++;
+  busy=false;
+  phase='result';
+  game=new Game();
+  errorKey='';
+  $('burn').value='';
+  render();
+  $('burn').focus();
+}
+;
+window.addEventListener('resize', ()=>render());
+$('rus').onclick=()=> {
+  lang='ru';
+  render();
+}
+;
+$('eng').onclick=()=> {
+  lang='en';
+  render();
+}
+;
+$('instructions').onclick=()=> {
+  $('manual').open=!$('manual').open;
+  if($('manual').open)$('manual').scrollIntoView({
+    behavior:'smooth', block:'nearest'
+  }
+  );
+}
+;
+$('testbutton').onclick=()=> {
+  testShown=true;
+  render();
+}
+;
+render();
+  </script>
+ </body>
+</html>
