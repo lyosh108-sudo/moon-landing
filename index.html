@@ -372,6 +372,51 @@ td,th {
 }
 
 
+
+/* Responsive post-flight chart */
+.flight-chart {
+  min-width: 0;
+}
+
+.chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.chart-plot {
+  width: 100%;
+  height: min(300px, 55vw, calc(100vh - 96px));
+  height: min(300px, 55vw, calc(100svh - 96px));
+  overflow: hidden;
+}
+
+.chart-plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.chart-ground {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+}
+
+.chart-path {
+  fill: none;
+  stroke: #65FF91;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-end {
+  fill: #65FF91;
+}
+
   </style>
  </head>
  <body>
@@ -394,6 +439,20 @@ td,th {
     <div id="instruments">
     </div>
     <div class="result" hidden="" id="result" role="status">
+    </div>
+   </section>
+   <section id="flight-chart" class="flight-chart" hidden>
+    <div id="chart-controls" class="chart-controls" hidden>
+     <button id="chart-recent" type="button"></button>
+     <button id="chart-all" type="button"></button>
+    </div>
+    <div id="chart-plot" class="chart-plot">
+     <svg id="chart-svg" xmlns="http://www.w3.org/2000/svg" role="img">
+      <title id="chart-description"></title>
+      <line id="chart-ground" class="chart-ground"/>
+      <polyline id="chart-path" class="chart-path"/>
+      <circle id="chart-end" class="chart-end" r="3"/>
+     </svg>
     </div>
    </section>
    <section id="inputpanel">
@@ -522,7 +581,7 @@ function test() {
 const strings= {
   ru: {
     title:'ПОСАДКА НА ЛУНУ',
-    subtitle:'По программе из книги «Пять вечеров с микрокалькулятором», 1988 / v8',
+    subtitle:'По программе из книги «Пять вечеров с микрокалькулятором», 1988 / v9',
     height:'Высота',
     down:'Скорость снижения',
     up:'Скорость подъёма',
@@ -581,7 +640,7 @@ const strings= {
   ,
   en: {
     title:'MOON LANDING',
-    subtitle:'Based on “Five Evenings with a Microcalculator”, 1988 / v8',
+    subtitle:'Based on “Five Evenings with a Microcalculator”, 1988 / v9',
     height:'Altitude',
     down:'Descent speed',
     up:'Ascent speed',
@@ -793,6 +852,131 @@ function render() {
     }
     $('log').append(tr);
   }
+  scheduleChart();
+}
+
+
+// Post-flight chart: geometry uses CSS pixels, not device pixels.
+let chartMode = 'recent';
+let chartFrame = 0;
+
+function chartGeometry(rows, width, height, mode) {
+  const padding = 8;
+  const plotWidth = Math.max(1, width - padding * 2);
+  const plotHeight = Math.max(1, height - padding * 2);
+  const points = [{ t: 0, h: 1000 }, ...rows];
+  const capacity = Math.floor(plotWidth) + 1;
+  const overflow = points.length > capacity;
+  const visible = overflow && mode === 'recent'
+    ? points.slice(-capacity)
+    : points;
+
+  // Both modes share the same vertical bounds, including the surface.
+  let minimum = 0;
+  let maximum = 1000;
+  for (const point of points) {
+    minimum = Math.min(minimum, point.h);
+    maximum = Math.max(maximum, point.h);
+  }
+
+  const firstTime = visible[0].t;
+  const timeRange = Math.max(1, visible[visible.length - 1].t - firstTime);
+  const heightRange = Math.max(1, maximum - minimum);
+  const y = altitude => padding + (maximum - altitude) / heightRange * plotHeight;
+  const coordinates = visible.map(point => ({
+    x: padding + (point.t - firstTime) / timeRange * plotWidth,
+    y: y(point.h)
+  }));
+
+  return {
+    overflow,
+    coordinates,
+    groundY: y(0),
+    minimum,
+    maximum,
+    padding
+  };
+}
+
+function scheduleChart() {
+  cancelAnimationFrame(chartFrame);
+  chartFrame = requestAnimationFrame(drawChart);
+}
+
+function drawChart() {
+  const panel = $('flight-chart');
+  panel.hidden = !game.done;
+  if (!game.done) {
+    $('chart-path').removeAttribute('points');
+    return;
+  }
+
+  const russian = lang === 'ru';
+  $('chart-recent').textContent = russian ? 'ПОСЛЕДНИЙ УЧАСТОК' : 'LATEST SECTION';
+  $('chart-all').textContent = russian ? 'ВЕСЬ ПОЛЁТ' : 'ENTIRE FLIGHT';
+
+  const plot = $('chart-plot');
+  let width = plot.getBoundingClientRect().width;
+  let height = plot.getBoundingClientRect().height;
+  if (width <= 16 || height <= 16) return;
+
+  let geometry = chartGeometry(game.rows, width, height, chartMode);
+  const controls = $('chart-controls');
+  controls.hidden = !geometry.overflow;
+
+  // Include wrapped controls in the viewport-height budget.
+  const viewportHeight = window.visualViewport
+    ? window.visualViewport.height
+    : window.innerHeight;
+  const controlsHeight = controls.hidden
+    ? 0
+    : controls.getBoundingClientRect().height + 8;
+  const style = getComputedStyle(panel);
+  const panelPadding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+  const budget = Math.max(1, viewportHeight - panelPadding - controlsHeight - 24);
+  plot.style.maxHeight = budget + 'px';
+  height = plot.getBoundingClientRect().height;
+  if (height <= 16) return;
+  geometry = chartGeometry(game.rows, width, height, chartMode);
+
+  $('chart-recent').setAttribute('aria-pressed', String(chartMode === 'recent'));
+  $('chart-all').setAttribute('aria-pressed', String(chartMode === 'all'));
+  $('chart-svg').setAttribute('viewBox', `0 0 ${width} ${height}`);
+  $('chart-description').textContent = russian
+    ? 'Высота во времени. Точные значения доступны в журнале ходов.'
+    : 'Altitude over time. Exact values are available in the flight log.';
+  $('chart-svg').setAttribute('aria-labelledby', 'chart-description');
+
+  const ground = $('chart-ground');
+  ground.setAttribute('x1', geometry.padding);
+  ground.setAttribute('x2', width - geometry.padding);
+  ground.setAttribute('y1', geometry.groundY);
+  ground.setAttribute('y2', geometry.groundY);
+  $('chart-path').setAttribute('points', geometry.coordinates
+    .map(point => `${point.x},${point.y}`).join(' '));
+  const end = geometry.coordinates[geometry.coordinates.length - 1];
+  $('chart-end').setAttribute('cx', end.x);
+  $('chart-end').setAttribute('cy', end.y);
+}
+
+$('chart-recent').onclick = () => {
+  chartMode = 'recent';
+  scheduleChart();
+};
+
+$('chart-all').onclick = () => {
+  chartMode = 'all';
+  scheduleChart();
+};
+
+// Observe the plot itself so changes to either width or height trigger a redraw.
+if ('ResizeObserver' in window) {
+  const chartObserver = new ResizeObserver(scheduleChart);
+  chartObserver.observe($('chart-plot'));
+}
+window.addEventListener('resize', scheduleChart);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', scheduleChart);
 }
 
 // Text-only segmented digits
@@ -953,6 +1137,7 @@ $('restart').onclick=()=> {
   busy=false;
   phase='result';
   game=new Game();
+  chartMode='recent';
   errorKey='';
   $('burn').value='';
   render();
