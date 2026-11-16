@@ -7,6 +7,7 @@
    Посадка на Луну
   </title>
   <style>
+   
 :root {
   color-scheme: dark;
   --ink: #efbb69;
@@ -302,6 +303,41 @@ td,th {
   color: #ff9b8e;
 }
 
+@media (max-width: 600px) {
+  .screen.mobile-screen {
+    width: 100%;
+    border: 1px solid var(--line);
+    padding: 16px 10px;
+    font-size: 12px;
+    transform: none;
+  }
+
+  .mobile-instrument + .mobile-instrument {
+    margin-top: 28px;
+    border-top: 1px dashed var(--line);
+    padding-top: 22px;
+  }
+
+  .mobile-label {
+    font-size: 39.6px;
+    line-height: 1.1;
+    margin-bottom: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-unit {
+    display: block;
+    font-size: 13px;
+    margin-top: 5px;
+  }
+
+  .screen.mobile-screen pre {
+    text-align: right;
+  }
+
+}
+
+
   </style>
  </head>
  <body>
@@ -370,22 +406,15 @@ td,th {
     <p class="hint" id="loghint">
     </p>
    </details>
-   <details>
-    <summary id="testtitle">
-    </summary>
-    <button id="testbutton">
-    </button>
-    <p id="testresult" role="status">
-    </p>
-   </details>
   </main>
   <script>
+   
 
 // Physical constants
 const G0=9.80665,
 FT=1/0.3048;
 
-// Simulation engine — original calculation order
+// Simulation engine
 class Game {
   constructor() {
     this.h=1000;
@@ -412,17 +441,17 @@ class Game {
       this.done=true;
       this.grade=Math.min(9, Math.floor(-this.h+Math.abs(this.v)+1));
     }
-    this.rows.push({
+    this.rows.push( {
       t:this.t, s, b, h:this.h, v:this.v, m:this.m, g:this.g
     }
     );
   }
 }
-
-// G-load markers and reference-flight verification
 function mark(g) {
   return g>9?' (Х!!!Х)':g>=6?' (!!!)':g>=3?' (!)':'';
 }
+
+// Internal reference-flight verification (not shown in the interface)
 function test() {
   let g=new Game();
   let n=0;
@@ -459,7 +488,7 @@ function test() {
 const strings= {
   ru: {
     title:'ПОСАДКА НА ЛУНУ',
-    subtitle:'По программе из книги «Пять вечеров с микрокалькулятором», 1988 / версия 6',
+    subtitle:'По программе из книги «Пять вечеров с микрокалькулятором», 1988 / v7',
     height:'Высота',
     down:'Скорость снижения',
     up:'Скорость подъёма',
@@ -518,7 +547,7 @@ const strings= {
   ,
   en: {
     title:'MOON LANDING',
-    subtitle:'Based on “Five Evenings with a Microcalculator”, 1988 / version 6',
+    subtitle:'Based on “Five Evenings with a Microcalculator”, 1988 / v7',
     height:'Altitude',
     down:'Descent speed',
     up:'Ascent speed',
@@ -575,17 +604,14 @@ const strings= {
     'Switching languages does not alter the flight. Distance is shown in feet and speed in ft/sec. Fuel always uses metric tonnes (t), not US or imperial tons.']
   }
 }
-
-// Application state and formatting
 let lang='ru',
 game=new Game(),
 errorKey='',
-testShown=false,
 busy=false,
 epoch=0,
 phase='result';
 const $=id=>document.getElementById(id);
-const f=(n, d=1)=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US', {
+const f=(n, d=1)=>n.toLocaleString(lang==='ru'?'ru-RU':'en-US',  {
   minimumFractionDigits:d, maximumFractionDigits:d
 }
 );
@@ -596,7 +622,7 @@ function p(parent, text, cls='') {
   parent.append(e);
 }
 
-// Interface rendering
+// Desktop and mobile interface rendering
 function render() {
   const s=strings[lang],
   k=lang==='en'?FT:1;
@@ -604,7 +630,7 @@ function render() {
   document.title=s.title;
   $('rus').setAttribute('aria-pressed', String(lang==='ru'));
   $('eng').setAttribute('aria-pressed', String(lang==='en'));
-  for(const id of['title', 'subtitle', 'label', 'step', 'help', 'instructions', 'restart', 'manualtitle', 'logtitle', 'loghint', 'testtitle', 'testbutton'])$(id).textContent=s[id];
+  for(const id of['title', 'subtitle', 'label', 'step', 'help', 'instructions', 'restart', 'manualtitle', 'logtitle', 'loghint'])$(id).textContent=s[id];
   $('burn').placeholder=s.placeholder;
   $('error').textContent=errorKey?s[errorKey]:'';
   const ins=$('instruments');
@@ -627,30 +653,71 @@ function render() {
     screen.append(el);
     return el;
   }
-  line('┌'+'─'.repeat(86)+'┐');
-  const widths=[30,
-  26,
-  18],
-  labels=[s.height+' · '+s.distance,
-  (game.v<0?'↑':game.v>0?'↓':' ')+' '+(lang==='ru'?'Скорость':'Speed')+' · '+s.speed,
-  s.fuel+' · '+s.mass];
-  const title=line('');
-  title.append(document.createTextNode('│  '+labels[0].padEnd(30)+'    '));
-  const arrow=document.createElement('span');
-  arrow.textContent=labels[1][0];
-  if(game.v<0)arrow.className='arrow-up';
-  title.append(arrow, document.createTextNode(labels[1].slice(1).padEnd(25)+'    '+labels[2].padEnd(18)+'  │'));
-  const fields=[game.h*k,
-  game.v*k,
-  game.m].map((v, i)=>segmentField(v, widths[i], phase==='all', i));
-  for(let r=0; r<3; r++) {
-    const el=line('│  ');
-    const digits=document.createElement('span');
-    digits.className='digits';
-    digits.textContent=fields.map(x=>x[r]).join('    ');
-    el.append(digits, document.createTextNode('  │'));
+  const mobile=window.matchMedia('(max-width: 600px)').matches;
+  if(mobile) {
+    screen.classList.add('mobile-screen');
+    const names=[s.height,
+    lang==='ru'?'Скорость':'Speed',
+    s.fuel];
+    const units=[s.distance,
+    s.speed,
+    s.mass];
+    const values=[game.h*k,
+    game.v*k,
+    game.m];
+    const widths=[30,
+    26,
+    18];
+    for(let i=0; i<3; i++) {
+      const instrument=document.createElement('div');
+      instrument.className='mobile-instrument';
+      const label=document.createElement('div');
+      label.className='mobile-label';
+      if(i===1) {
+        const arrow=document.createElement('span');
+        arrow.textContent=game.v<0?'↑ ':game.v>0?'↓ ':'  ';
+        if(game.v<0)arrow.className='arrow-up';
+        label.append(arrow);
+      }
+      label.append(document.createTextNode(names[i].toUpperCase()));
+      const unit=document.createElement('span');
+      unit.className='mobile-unit';
+      unit.textContent=units[i];
+      label.append(unit);
+      const digits=document.createElement('pre');
+      digits.className='digits';
+      digits.textContent=segmentField(values[i], widths[i], phase==='all', i).join('\n');
+      digits.setAttribute('aria-label', names[i]+': '+f(values[i])+' '+units[i]);
+      instrument.append(label, digits);
+      screen.append(instrument);
+    }
   }
-  line('└'+'─'.repeat(86)+'┘');
+  else {
+    line('┌'+'─'.repeat(86)+'┐');
+    const widths=[30,
+    26,
+    18],
+    labels=[s.height+' · '+s.distance,
+    (game.v<0?'↑':game.v>0?'↓':' ')+' '+(lang==='ru'?'Скорость':'Speed')+' · '+s.speed,
+    s.fuel+' · '+s.mass];
+    const title=line('');
+    title.append(document.createTextNode('│  '+labels[0].padEnd(30)+'    '));
+    const arrow=document.createElement('span');
+    arrow.textContent=labels[1][0];
+    if(game.v<0)arrow.className='arrow-up';
+    title.append(arrow, document.createTextNode(labels[1].slice(1).padEnd(25)+'    '+labels[2].padEnd(18)+'  │'));
+    const fields=[game.h*k,
+    game.v*k,
+    game.m].map((v, i)=>segmentField(v, widths[i], phase==='all', i));
+    for(let r=0; r<3; r++) {
+      const el=line('│  ');
+      const digits=document.createElement('span');
+      digits.className='digits';
+      digits.textContent=fields.map(x=>x[r]).join('    ');
+      el.append(digits, document.createTextNode('  │'));
+    }
+    line('└'+'─'.repeat(86)+'┘');
+  }
   wrap.append(screen);
   ins.append(wrap);
   const status=document.createElement('div');
@@ -660,7 +727,7 @@ function render() {
   $('step').disabled=busy;
   $('burn').disabled=busy;
   requestAnimationFrame(()=> {
-    if(!screen.isConnected)return; const scale=Math.min(1, wrap.clientWidth/screen.offsetWidth); screen.style.transform='scale('+scale+')'; wrap.style.height=screen.offsetHeight*scale+'px';
+    if(mobile||!screen.isConnected)return; const scale=Math.min(1, wrap.clientWidth/screen.offsetWidth); screen.style.transform='scale('+scale+')'; wrap.style.height=screen.offsetHeight*scale+'px';
   }
   );
   $('inputpanel').hidden=game.done||game.m===0;
@@ -692,10 +759,9 @@ function render() {
     }
     $('log').append(tr);
   }
-  if(testShown)$('testresult').textContent=(test()?'OK':'ERROR')+(lang==='ru'?': 19/19 высот; оценка 3,1111111; топливо 82 т; 22 сек.':': 19/19 altitudes; rating 3.1111111; fuel 82 t; 22 sec.');
 }
 
-// Text-only seven-segment display
+// Text-only segmented digits
 const glyph= {
   '0':[' _ ',
   '| |',
@@ -745,9 +811,9 @@ function segmentField(value, width, all, index) {
   return lines.map(x=>x.length>width?'ERR'.padStart(width):x.padStart(width));
 }
 
-// Automatic engine-off flight
+// Compressed automatic flight
 function coastTargets(n) {
-  if(n<=4)return Array.from({
+  if(n<=4)return Array.from( {
     length:n
   }
   , (_, i)=>i+1);
@@ -770,20 +836,20 @@ function coastCount(source) {
   return n;
 }
 
-// Display animation and turn sequencing
+// Display animation: three phases of 333 ms
 const delay=ms=>new Promise(resolve=>setTimeout(resolve, ms));
 async function animateTo(target, id) {
   phase='off';
   render();
-  await delay(500);
+  await delay(333);
   if(id!==epoch)return false;
   phase='all';
   render();
-  await delay(500);
+  await delay(333);
   if(id!==epoch)return false;
   phase='off';
   render();
-  await delay(500);
+  await delay(333);
   if(id!==epoch)return false;
   game=target;
   phase='result';
@@ -822,7 +888,7 @@ async function runTurn(n) {
   if(!game.done)$('burn').focus();
 }
 
-// Input and interface event handlers
+// Input and interface events
 $('form').onsubmit=e=> {
   e.preventDefault();
   if(game.done||busy)return;
@@ -872,18 +938,14 @@ $('eng').onclick=()=> {
 ;
 $('instructions').onclick=()=> {
   $('manual').open=!$('manual').open;
-  if($('manual').open)$('manual').scrollIntoView({
+  if($('manual').open)$('manual').scrollIntoView( {
     behavior:'smooth', block:'nearest'
   }
   );
 }
 ;
-$('testbutton').onclick=()=> {
-  testShown=true;
-  render();
-}
-;
 render();
+
   </script>
  </body>
 </html>
