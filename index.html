@@ -306,33 +306,67 @@ td,th {
 @media (max-width: 600px) {
   .screen.mobile-screen {
     width: 100%;
+    padding: 4px 12px;
     border: 1px solid var(--line);
-    padding: 16px 10px;
-    font-size: 12px;
     transform: none;
   }
 
+  .mobile-instrument {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 10px;
+    align-items: center;
+    min-height: 84px;
+    padding: 18px 0;
+  }
+
   .mobile-instrument + .mobile-instrument {
-    margin-top: 28px;
     border-top: 1px dashed var(--line);
-    padding-top: 22px;
   }
 
   .mobile-label {
-    font-size: 39.6px;
-    line-height: 1.1;
-    margin-bottom: 12px;
-    overflow-wrap: anywhere;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: bold;
+    white-space: nowrap;
   }
 
   .mobile-unit {
-    display: block;
-    font-size: 13px;
-    margin-top: 5px;
+    font-size: 12px;
+    font-weight: normal;
+  }
+
+  .direction-slot {
+    display: inline-block;
+    width: 1.2em;
   }
 
   .screen.mobile-screen pre {
-    text-align: right;
+    justify-self: end;
+    margin: 0;
+    font-size: clamp(7px, 2.2vw, 12px);
+    line-height: 1.1;
+    font-weight: bold;
+    white-space: pre;
+  }
+
+}
+
+@media (max-width: 360px) {
+  .screen.mobile-screen {
+    padding: 4px 8px;
+  }
+
+  .mobile-instrument {
+    column-gap: 6px;
+  }
+
+  .mobile-label {
+    font-size: 13px;
+  }
+
+  .mobile-unit {
+    font-size: 11px;
   }
 
 }
@@ -451,7 +485,7 @@ function mark(g) {
   return g>9?' (Х!!!Х)':g>=6?' (!!!)':g>=3?' (!)':'';
 }
 
-// Internal reference-flight verification (not shown in the interface)
+// Internal reference verification
 function test() {
   let g=new Game();
   let n=0;
@@ -484,11 +518,11 @@ function test() {
   return n===19&&g.grade===3&&g.t===22&&g.m===82;
 }
 
-// Russian and English interface text
+// Translations
 const strings= {
   ru: {
     title:'ПОСАДКА НА ЛУНУ',
-    subtitle:'По программе из книги «Пять вечеров с микрокалькулятором», 1988 / v7',
+    subtitle:'По программе из книги «Пять вечеров с микрокалькулятором», 1988 / v8',
     height:'Высота',
     down:'Скорость снижения',
     up:'Скорость подъёма',
@@ -547,7 +581,7 @@ const strings= {
   ,
   en: {
     title:'MOON LANDING',
-    subtitle:'Based on “Five Evenings with a Microcalculator”, 1988 / v7',
+    subtitle:'Based on “Five Evenings with a Microcalculator”, 1988 / v8',
     height:'Altitude',
     down:'Descent speed',
     up:'Ascent speed',
@@ -622,7 +656,7 @@ function p(parent, text, cls='') {
   parent.append(e);
 }
 
-// Desktop and mobile interface rendering
+// Desktop and compact mobile instruments
 function render() {
   const s=strings[lang],
   k=lang==='en'?FT:1;
@@ -673,20 +707,20 @@ function render() {
       instrument.className='mobile-instrument';
       const label=document.createElement('div');
       label.className='mobile-label';
-      if(i===1) {
-        const arrow=document.createElement('span');
-        arrow.textContent=game.v<0?'↑ ':game.v>0?'↓ ':'  ';
-        if(game.v<0)arrow.className='arrow-up';
-        label.append(arrow);
-      }
-      label.append(document.createTextNode(names[i].toUpperCase()));
+      const arrow=document.createElement('span');
+      arrow.className='direction-slot';
+      arrow.textContent=i===1?(game.v<0?'↑':game.v>0?'↓':' '):' ';
+      if(i===1&&game.v<0)arrow.className+=' arrow-up';
+      label.append(arrow, document.createTextNode(names[i].toUpperCase()));
       const unit=document.createElement('span');
       unit.className='mobile-unit';
-      unit.textContent=units[i];
+      unit.textContent=' ('+units[i]+')';
       label.append(unit);
       const digits=document.createElement('pre');
       digits.className='digits';
-      digits.textContent=segmentField(values[i], widths[i], phase==='all', i).join('\n');
+      const field=segmentField(values[i], widths[i], phase==='all', i);
+      const leading=Math.min(...field.map(row=>row.search(/\S/)));
+      digits.textContent=field.map(row=>row.slice(Math.max(0, leading))).join('\n');
       digits.setAttribute('aria-label', names[i]+': '+f(values[i])+' '+units[i]);
       instrument.append(label, digits);
       screen.append(instrument);
@@ -836,7 +870,7 @@ function coastCount(source) {
   return n;
 }
 
-// Display animation: three phases of 333 ms
+// Three animation phases, 333 ms each
 const delay=ms=>new Promise(resolve=>setTimeout(resolve, ms));
 async function animateTo(target, id) {
   phase='off';
@@ -888,7 +922,7 @@ async function runTurn(n) {
   if(!game.done)$('burn').focus();
 }
 
-// Input and interface events
+// Interface events
 $('form').onsubmit=e=> {
   e.preventDefault();
   if(game.done||busy)return;
